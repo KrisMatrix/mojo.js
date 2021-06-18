@@ -1,28 +1,33 @@
+import type App from '../app.js';
+import type File from '../file.js';
+import type {MojoAction, MojoStash, RenderOptions} from '../types.js';
+import type ServerRequest from '../server/request.js';
 import Context from '../context.js';
 import ServerResponse from '../server/response.js';
 
 export default class HTTPContext extends Context {
-  constructor (app, req, res, options) {
+  res: ServerResponse;
+  constructor (app: App, req: ServerRequest, res: ServerResponse, options: MojoStash) {
     super(app, req, options);
     this.res = new ServerResponse(res, this);
   }
 
-  accepts (allowed) {
+  accepts (...allowed: string[]): [string] {
     const formats = this.app.mime.detect(this.req.get('Accept') ?? '');
-    const stash = this.stash;
+    const stash = this.stash as MojoStash;
     if (typeof stash.ext === 'string') formats.unshift(stash.ext);
 
     if (allowed === undefined) return formats.length > 0 ? formats : null;
 
-    const results = formats.filter(format => allowed.includes(format));
+    const results = formats.filter((format: string) => allowed.includes(format));
     return results.length > 0 ? results : null;
   }
 
-  async redirectTo (target, options = {}) {
+  async redirectTo (target: string, options: {status?: number, values?: string} = {}): Promise<void> {
     await this.res.status(options.status ?? 302).set('Location', this.urlFor(target, options.values)).send();
   }
 
-  async render (options = {}, stash) {
+  async render (options: RenderOptions = {}, stash: MojoStash = {}): Promise<boolean> {
     if (typeof options === 'string') options = {view: options};
     if (stash !== undefined) Object.assign(this.stash, stash);
 
@@ -34,7 +39,7 @@ export default class HTTPContext extends Context {
     }
 
     const res = this.res;
-    if (res.isSent === true) return false;
+    if (res.isSent) return false;
     if (options.status !== undefined) res.status(options.status);
     const type = app.mime.extType(result.format) ?? 'application/octet-stream';
     await res.type(type).send(result.output);
@@ -42,14 +47,14 @@ export default class HTTPContext extends Context {
     return true;
   }
 
-  async renderToString (options, stash) {
+  async renderToString (options: RenderOptions, stash: MojoStash): Promise<string> {
     if (typeof options === 'string') options = {view: options};
     Object.assign(this.stash, stash);
     const result = await this.app.renderer.render(this, options);
     return result === null ? null : result.output.toString();
   }
 
-  async respondTo (spec) {
+  async respondTo (spec: {[key: string]: MojoAction}): Promise<void> {
     const formats = this.accepts() ?? [];
 
     for (const format of formats) {
@@ -66,7 +71,7 @@ export default class HTTPContext extends Context {
     await this.res.status(204).send();
   }
 
-  sendFile (file) {
+  sendFile (file: File): boolean {
     return this.app.static.serveFile(this, file);
   }
 }

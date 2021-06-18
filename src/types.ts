@@ -26,6 +26,9 @@ export interface MojoStash {[key: string]: any}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type MojoPlugin = (app: App, options: MojoStash) => any;
 
+// Options for render methods
+export type RenderOptions = ({maybe?: boolean, view?: string, status?: number} | string);
+
 // Route arguments
 export type AnyArguments = Array<string | string[] | MojoAction | {[key: string]: string[] | RegExp}>;
 export type RouteArguments = Array<string | MojoAction | {[key: string]: string[] | RegExp}>;
